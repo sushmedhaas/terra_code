@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webdeployment
+  namespace: devproject
+spec:
+  # replicas: 1
+  selector:
+    matchLabels:
+      apptype: web
+      env: dev
+  template:
+    metadata:
+      name: webtemp
+      labels:
+        apptype: web
+        env: dev
+    spec:
+      containers:
+      - image: sudarshanlnx/farmfresh:v1
+        name: webcon
+        imagePullPolicy: Always
+        ports:
+        -  name: apache
+           containerPort: 80
+           protocol: TCP
+        resources:
+           requests:
+             memory: "200Mi"
+             cpu: "100m"
+           limits:
+             memory: "600Mi"
+             cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: websvc   #service name (it can be any name)
+ namespace: devproject
+spec:
+ ports:
+ - name: apache
+   port: 80 #service port
+   targetPort: 80 #container port
+   protocol: TCP
+ selector:     #mapping to pod
+   apptype: web
+   env: dev
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+   name: webingress
+   namespace: devproject
+spec:
+   ingressClassName: nginx
+   rules:
+   - host: "www.awsdevopsai.online"
+     http:
+       paths:
+       - path: "/"
+         pathType: Prefix
+         backend:
+           service:
+             name: websvc
+             port:
+              number: 80
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+   name: webhpa
+   namespace: devproject
+spec:
+  maxReplicas: 3
+  minReplicas: 1
+  targetCPUUtilizationPercentage: 5
+ #targetMemoryUtilizationPercentage: 30
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webdeployment
